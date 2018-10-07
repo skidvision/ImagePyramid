@@ -1,0 +1,1253 @@
+(* Content-type: application/vnd.wolfram.mathematica *)
+
+(*** Wolfram Notebook File ***)
+(* http://www.wolfram.com/nb *)
+
+(* CreatedBy='Mathematica 11.3' *)
+
+(*CacheID: 234*)
+(* Internal cache information:
+NotebookFileLineBreakTest
+NotebookFileLineBreakTest
+NotebookDataPosition[       158,          7]
+NotebookDataLength[     45096,       1245]
+NotebookOptionsPosition[     34135,       1036]
+NotebookOutlinePosition[     35048,       1065]
+CellTagsIndexPosition[     35005,       1062]
+WindowFrame->Normal*)
+
+(* Beginning of Notebook Content *)
+Notebook[{
+
+Cell[CellGroupData[{
+Cell["Image Pyramid Package", "Title",
+ InitializationCell->
+  True,ExpressionUUID->"6149536e-5cb6-48af-bc9a-2885cc1e8482"],
+
+Cell["\<\
+flip phillips
+6april99\
+\>", "Subsubtitle",
+ InitializationCell->
+  True,ExpressionUUID->"1166bfba-94db-47af-a10c-68f6cae6035a"],
+
+Cell[CellGroupData[{
+
+Cell["Standard WRI Header stuff", "Section",
+ InitializationCell->
+  True,ExpressionUUID->"c839ca35-8553-4794-898e-4e79541be9de"],
+
+Cell["\<\
+(* :Title: Image Pyramid Package *)
+
+(* :Context: ImageTools`Pyramid` *)
+
+(* :Author: Flip Phillips
+\tRecent modifications of $Date: 1999/04/11 21:46:38 $ by $Author: cvs $ *)
+
+(* :Summary: 
+\tThis package adds various image pyramid operations to Mathematica.
+*)
+
+(* :Package Version: $Revision: 1.4 $ *)
+
+(* :Mathematica Version: 4.0 *)
+
+(* :Copyright: Copyright 1999, Flip Phillips, All Rights Reserved.  *)
+
+(* :History: 
+$Log: Pyramid.nb,v $
+Revision 1.4  1999/04/11 21:46:38  cvs
+made ImagePyramid data structure
+added filter bank stuff inc. convolution
+
+Revision 1.3  1999/04/11 03:31:01  cvs
+Optimized the recombine function
+Created Gaussian->Laplacian and orthogonal function
+Added ShowPyramid utility
+
+Revision 1.2  1999/04/06 22:05:06  cvs
+changed downsampling procedure to do a better job
+also made filter 9x9 instead of 3x3, turns out that the convolution routine \
+in mma4 is quite good so speed hit isn't that bad
+
+Revision 1.1  1999/04/06 17:07:46  cvs
+initial check-in
+
+*)
+
+(* :Keywords:
+\tImage Pyramid, Gaussian Pyramids
+*)
+
+(* :Limitations:  
+\tNeeds the ListConvolve stuff from MMa 4.0
+*)
+
+(* :Discussion:  *)\
+\>", "Input",
+ InitializationCell->True,
+ AspectRatioFixed->
+  True,ExpressionUUID->"4f4337f5-2efe-4b5e-ba77-f1863306000c"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell["References", "Section",ExpressionUUID->"e048f586-a8b6-4c87-bd73-3642eb8a6abd"],
+
+Cell[TextData[{
+ "This package is designed for doing image pyramid operations ala:\n E. H. \
+Adelson & P. J. Burt (1981). ",
+ StyleBox["Image Data Compression with the Laplacian Pyramid",
+  FontWeight->"Bold"],
+ ", Proceedings of the Pattern Recognition and Information Processing \
+Conference, (pp. 218-223), Dallas TX."
+}], "Text",
+ InitializationCell->
+  True,ExpressionUUID->"fe9916e8-baed-4f8d-9895-ac5a3467389a"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell["The Package", "Section",
+ InitializationCell->
+  True,ExpressionUUID->"f3d9841f-a8b1-4af0-9698-838311729d17"],
+
+Cell[CellGroupData[{
+
+Cell["Set up the package context, including any imports", "Subsection",
+ InitializationCell->
+  True,ExpressionUUID->"4ef9e287-63ac-425f-b3f9-f2b4f410cb9e"],
+
+Cell["\<\
+BeginPackage[\"ImageTools`Pyramid`\",
+
+\"Statistics`NormalDistribution`\",
+\"Statistics`Common`DistributionsCommon`\",
+
+\"ExpTools`LineTools`\"];\
+\>", "Input",
+ InitializationCell->
+  True,ExpressionUUID->"043fcd26-a1a2-461e-9376-19cf51953be0"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell["Usage Messages", "Subsection",
+ InitializationCell->
+  True,ExpressionUUID->"e6d15eeb-c726-4480-b873-3dbba59ee418"],
+
+Cell[BoxData[
+ RowBox[{
+  RowBox[{"Pyramid", "::", "usage"}], "=", 
+  "\"\<Pyramid.m is a package which provides a few tools for doing image \
+pyramid decompositions.\>\""}]], "Input",
+ InitializationCell->
+  True,ExpressionUUID->"fab89708-d8e5-4b1e-94c4-58b68017d67a"],
+
+Cell[BoxData[
+ RowBox[{
+  RowBox[{"SameSizeConvolve", "::", "usage"}], "=", 
+  "\"\<SameSizeConvolve[image,kernel] convolves image with kernel and returns \
+an image the same size as the input (i.e. trimmed). It, by default, wraps, \
+since we're doing texture calculations and we'd expect the frequency \
+information to be consistent across the texel (so to speak).\>\""}]], "Input",\
+
+ InitializationCell->
+  True,ExpressionUUID->"352a4ddf-9a3e-4a46-a384-6fff84ff53ce"],
+
+Cell[BoxData[
+ RowBox[{
+  RowBox[{"DownSample2", "::", "usage"}], "=", 
+  "\"\<DownSample2[image] returns an image that is down sampled by a factor \
+of two.\>\""}]], "Input",
+ InitializationCell->
+  True,ExpressionUUID->"b6be29a7-015d-424f-9641-01757c3d07db"],
+
+Cell[BoxData[
+ RowBox[{
+  RowBox[{"UpSample2", "::", "usage"}], "=", 
+  "\"\<UpSample2[image] returns an image that is up sampled by a factor of \
+two.\>\""}]], "Input",
+ InitializationCell->
+  True,ExpressionUUID->"4b888e9e-1fcb-47e1-bfa0-51bc4a5dc815"],
+
+Cell[BoxData[
+ RowBox[{
+  RowBox[{"MakeConvolutionPyramid", "::", "usage"}], "=", 
+  "\"\<MakeConvolutionPyramid[image,kernel] returns an image pyramid in which \
+each image is convolved with kernel and down-sampled.\>\""}]], "Input",
+ InitializationCell->
+  True,ExpressionUUID->"3981512f-ff8a-4484-baf4-5f0a591bd46f"],
+
+Cell[BoxData[
+ RowBox[{
+  RowBox[{"MakeDifferencePyramid", "::", "usage"}], "=", 
+  "\"\<MakeDifferencePyramid[pyramid] creates a difference pyramid where each \
+level contains \!\(\*SubscriptBox[\(p\), \
+\(i\)]\)-UpSample2[\!\(\*SubscriptBox[\(p\), \(i + 1\)]\)].\>\""}]], "Input",
+ InitializationCell->
+  True,ExpressionUUID->"9600a206-a12b-4883-a9bb-e061069b7888"],
+
+Cell[BoxData[
+ RowBox[{
+  RowBox[{"MakeGaussianPyramid", "::", "usage"}], "=", 
+  "\"\<MakeGaussianPyramid[image] creates a Gaussian pyramid for \
+image.\>\""}]], "Input",
+ InitializationCell->
+  True,ExpressionUUID->"455a68f1-9c3e-47cc-b1d4-bd520de26728"],
+
+Cell[BoxData[
+ RowBox[{
+  RowBox[{"MakeLaplacianPyramid", "::", "usage"}], "=", 
+  "\"\<MakeLaplacianPyramid[image] creates a Laplacian pyramid for \
+image.\>\""}]], "Input",
+ InitializationCell->
+  True,ExpressionUUID->"9f01365b-c918-428d-98f9-aa8007a1c449"],
+
+Cell[BoxData[
+ RowBox[{
+  RowBox[{"MakeLaplacianPyramidFromGaussianPyramid", "::", "usage"}], "=", 
+  "\"\<MakeLaplacianPyramidFromGaussianPyramid[pyramid] creates a Laplacian \
+pyramid from the supplied Gaussian pyramid.\>\""}]], "Input",
+ InitializationCell->
+  True,ExpressionUUID->"34281aac-e383-423b-9425-2773c9acfad1"],
+
+Cell[BoxData[
+ RowBox[{
+  RowBox[{"ExpandPyramid", "::", "usage"}], "=", 
+  "\"\<ExpandPyramid[pyramid] creates a stack of images all at the same \
+resolution as the highest res image in the pyramid.\>\""}]], "Input",
+ InitializationCell->
+  True,ExpressionUUID->"2c8ed1b9-4349-4e60-97da-c55bc889ffe4"],
+
+Cell[BoxData[
+ RowBox[{
+  RowBox[{"RecombineLaplacianPyramid", "::", "usage"}], "=", 
+  "\"\<RecombineLaplacianPyramid[image] recombines a pyramid of Laplacians \
+into one image.\>\""}]], "Input",
+ InitializationCell->
+  True,ExpressionUUID->"686d6881-d727-485f-8d07-ec418bd1c1d9"],
+
+Cell[BoxData[
+ RowBox[{
+  RowBox[{"MakeGaussianPyramidFromLaplacianPyramid", "::", "usage"}], "=", 
+  "\"\<MakeGaussianPyramidFromLaplacianPyramid[pyramid] makes a Gaussian \
+pyramid from a given Laplacian pyramid.\>\""}]], "Input",
+ InitializationCell->
+  True,ExpressionUUID->"3abfd0f7-fcb0-46ea-a7fd-8d5d531c90f0"],
+
+Cell[BoxData[
+ RowBox[{
+  RowBox[{"ShowPyramid", "::", "usage"}], "=", 
+  "\"\<ShowPyramid[pyramid] draws the levels of a given pyramid.\>\""}]], \
+"Input",
+ InitializationCell->
+  True,ExpressionUUID->"b4ea58bf-ac05-415e-9d8c-602f91fa633b"],
+
+Cell[BoxData[
+ RowBox[{
+  RowBox[{"ImagePyramid", "::", "usage"}], "=", 
+  "\"\<ImagePyramid[data] represents an image pyramid data \
+structure.\>\""}]], "Input",
+ InitializationCell->
+  True,ExpressionUUID->"8749b1c8-8b72-4e0a-9f3c-84722e54799e"],
+
+Cell[BoxData[
+ RowBox[{
+  RowBox[{"ConvolvePyramid", "::", "usage"}], "=", 
+  "\"\<ConvolvePyramid[pyramid,kernel] convolves each level of pyramid with \
+kernel.\>\""}]], "Input",
+ InitializationCell->
+  True,ExpressionUUID->"ec855ff8-e4da-4369-b600-f721777d7cd9"],
+
+Cell[BoxData[
+ RowBox[{
+  RowBox[{"ConvolvePyramidWithBank", "::", "usage"}], "=", 
+  "\"\<ConvolvePyramidWithBank[pyramid,kernelbank] returns a list of \
+pyramids, each pyramid is convolved with one of the kernels in the \
+bank\>\""}]], "Input",
+ InitializationCell->
+  True,ExpressionUUID->"11081a05-6cda-401f-bdca-64467e1dcf27"],
+
+Cell[BoxData[
+ RowBox[{
+  RowBox[{"ConvolveImageWithBank", "::", "usage"}], "=", 
+  "\"\<ConvolveImageWithBank[image,kernelbank] returns a list of images, each \
+is convolved with one of the kernels from the bank.\>\""}]], "Input",
+ InitializationCell->
+  True,ExpressionUUID->"ccdb8839-ee3a-4592-9038-b470a8671517"],
+
+Cell[BoxData[
+ RowBox[{
+  RowBox[{"MakeOrientedKernelBank", "::", "usage"}], "=", 
+  "\"\<MakeOrientedKernelBank[dim,f] returns a list of 8 oriented kernels of \
+size 2dim-1, generated using f[x] where x is the signed distance from the \
+center line.\>\""}]], "Input",
+ InitializationCell->
+  True,ExpressionUUID->"31ebc6c4-6191-4684-b904-41f175e878a9"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell["Begin the private context", "Subsection",
+ InitializationCell->
+  True,ExpressionUUID->"32d0da63-ef22-4174-a4a1-0f5509e0ccdf"],
+
+Cell["Begin[\"`Private`\"]", "Input",
+ InitializationCell->
+  True,ExpressionUUID->"ff99b70b-e45e-4ed4-8b60-8c6f15d08e4f"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell["\<\
+Unprotect any system functions for which rules will be defined\
+\>", "Subsection",
+ InitializationCell->
+  True,ExpressionUUID->"365049f7-2e09-47f2-bea5-2459a157759a"],
+
+Cell["Prevent re-load problems", "Text",
+ InitializationCell->
+  True,ExpressionUUID->"14f4dedc-110e-42f7-956d-afd7a3aee651"],
+
+Cell[BoxData[
+ RowBox[{
+  RowBox[{"Unprotect", "[", 
+   RowBox[{"{", 
+    RowBox[{
+    "SameSizeConvolve", ",", "DownSample2", ",", "UpSample2", ",", 
+     "MakeConvolutionPyramid", ",", "MakeDifferencePyramid", ",", 
+     "MakeGaussianPyramid", ",", "MakeLaplacianPyramid", ",", 
+     "MakeLaplacianPyramidFromGaussianPyramid", ",", "ExpandPyramid", ",", 
+     "RecombineLaplacianPyramid", ",", 
+     "MakeGaussianPyramidFromLaplacianPyramid", ",", "ShowPyramid", ",", 
+     "ImagePyramid", ",", "\[IndentingNewLine]", "ConvolvePyramid", ",", 
+     "ConvolvePyramidWithBank", ",", "ConvolveImageWithBank", ",", 
+     "\[IndentingNewLine]", "MakeOrientedKernelBank"}], "}"}], "]"}], 
+  ";"}]], "Input",
+ InitializationCell->
+  True,ExpressionUUID->"c0c5b6f7-36a2-43ff-8b37-83403b7172e3"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell["Format", "Subsection",ExpressionUUID->"d3b7552c-d347-4381-a645-cd355eac78e1"],
+
+Cell[BoxData[
+ RowBox[{
+  RowBox[{"Format", "[", "t_ImagePyramid", "]"}], ":=", 
+  "\"\<ImagePyramid[ <> ]\>\""}]], "Input",
+ InitializationCell->
+  True,ExpressionUUID->"97949613-4de4-47bd-92ca-16cdc732cf38"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell["\<\
+Definition of auxiliary functions and local (static) variables\
+\>", "Subsection",
+ InitializationCell->
+  True,ExpressionUUID->"57b91de1-ddfa-49cd-864e-4e52c4df63f5"],
+
+Cell["Utility for normalizing a 2D something (image, kernel)", "Text",ExpressionUUID->"e29ace32-9f56-490f-9dba-4b610e5a2ee6"],
+
+Cell[BoxData[
+ RowBox[{
+  RowBox[{"normalize2D", "[", "k_", "]"}], ":=", 
+  RowBox[{"Module", "[", 
+   RowBox[{
+    RowBox[{"{", "sf", "}"}], ",", "\[IndentingNewLine]", 
+    RowBox[{
+     RowBox[{"sf", "=", 
+      RowBox[{"1", "/", 
+       RowBox[{"Plus", "@@", 
+        RowBox[{"Flatten", "[", "k", "]"}]}]}]}], ";", "\[IndentingNewLine]", 
+     
+     RowBox[{"Map", "[", 
+      RowBox[{
+       RowBox[{
+        RowBox[{"#", "*", "sf"}], "&"}], ",", "k", ",", 
+       RowBox[{"{", "2", "}"}]}], "]"}]}]}], "]"}]}]], "Input",
+ InitializationCell->
+  True,ExpressionUUID->"ee9d1791-194d-41b6-9264-0c6b8c0ceb3a"],
+
+Cell["\<\
+This is a simple 9x9 Gaussian kernel that we use for making the pyramids\
+\>", "Text",
+ InitializationCell->
+  True,ExpressionUUID->"1e1ba00f-edde-4b32-9686-96baeb92b70e"],
+
+Cell[BoxData[
+ RowBox[{
+  RowBox[{"Kgauss", "=", 
+   RowBox[{"normalize2D", "[", 
+    RowBox[{"Table", "[", 
+     RowBox[{
+      RowBox[{"N", "[", 
+       RowBox[{"PDF", "[", 
+        RowBox[{
+         RowBox[{"NormalDistribution", "[", 
+          RowBox[{"0", ",", "1"}], "]"}], ",", 
+         RowBox[{"VectorLength", "[", 
+          RowBox[{"{", 
+           RowBox[{"x", ",", "y"}], "}"}], "]"}]}], "]"}], "]"}], ",", 
+      RowBox[{"{", 
+       RowBox[{"x", ",", 
+        RowBox[{"-", "3"}], ",", "3", ",", "1"}], "}"}], ",", 
+      RowBox[{"{", 
+       RowBox[{"y", ",", 
+        RowBox[{"-", "3"}], ",", "3", ",", "1"}], "}"}]}], "]"}], "]"}]}], 
+  ";"}]], "Input",
+ InitializationCell->
+  True,ExpressionUUID->"a5102e78-8298-4b5b-875a-33d8a2d408b0"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell["Error messages for the exported objects", "Subsection",
+ InitializationCell->
+  True,ExpressionUUID->"c18a15e9-d5b0-49ca-9691-6226d09adf2d"],
+
+Cell[BoxData[
+ RowBox[{
+  RowBox[{
+   RowBox[{"ImagePyramid", "::", "notpyr"}], "=", 
+   "\"\<Not a valid image pyramid\>\""}], ";"}]], "Input",
+ InitializationCell->
+  True,ExpressionUUID->"842c6806-ad6a-44da-b72a-61db2460e9ff"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell["Definition of the exported functions", "Subsection",
+ InitializationCell->
+  True,ExpressionUUID->"c2e14dcb-ff47-4650-a3ca-b0f188e6c35a"],
+
+Cell[CellGroupData[{
+
+Cell["Convolution Utility", "Subsubsection",ExpressionUUID->"10a01a83-cc1d-4716-a9c4-33aabbe1363e"],
+
+Cell["\<\
+This convolves an image with a kernel and returns a result that is the same \
+size as the input image. Useful for a few of the little problems we have in \
+this package\
+\>", "Text",ExpressionUUID->"42106ac2-404d-4108-9c28-d060c50fd2ff"],
+
+Cell[BoxData[
+ RowBox[{
+  RowBox[{"SameSizeConvolve", "[", 
+   RowBox[{"kernel_", ",", "image_"}], "]"}], ":=", 
+  RowBox[{"Module", "[", 
+   RowBox[{
+    RowBox[{"{", 
+     RowBox[{"i", ",", "trim", ",", "dims"}], "}"}], ",", 
+    "\[IndentingNewLine]", 
+    RowBox[{
+     RowBox[{"i", "=", 
+      RowBox[{"ListConvolve", "[", 
+       RowBox[{"kernel", ",", "image", ",", 
+        RowBox[{"{", 
+         RowBox[{"1", ",", 
+          RowBox[{"-", "1"}]}], "}"}]}], "]"}]}], ";", "\[IndentingNewLine]", 
+     
+     RowBox[{"trim", "=", 
+      RowBox[{
+       RowBox[{"(", 
+        RowBox[{
+         RowBox[{"Dimensions", "[", "kernel", "]"}], "-", "1"}], ")"}], "/", 
+       "2"}]}], ";", "\[IndentingNewLine]", 
+     RowBox[{"dims", "=", 
+      RowBox[{"Dimensions", "[", "i", "]"}]}], ";", "\[IndentingNewLine]", 
+     RowBox[{"Take", "[", 
+      RowBox[{"i", ",", 
+       RowBox[{"{", 
+        RowBox[{
+         RowBox[{"1", "+", 
+          RowBox[{
+          "trim", "\[LeftDoubleBracket]", "1", "\[RightDoubleBracket]"}]}], 
+         ",", 
+         RowBox[{
+          RowBox[{
+          "dims", "\[LeftDoubleBracket]", "1", "\[RightDoubleBracket]"}], "-", 
+          RowBox[{
+          "trim", "\[LeftDoubleBracket]", "1", "\[RightDoubleBracket]"}]}]}], 
+        "}"}], ",", 
+       RowBox[{"{", 
+        RowBox[{
+         RowBox[{"1", "+", 
+          RowBox[{
+          "trim", "\[LeftDoubleBracket]", "2", "\[RightDoubleBracket]"}]}], 
+         ",", 
+         RowBox[{
+          RowBox[{
+          "dims", "\[LeftDoubleBracket]", "2", "\[RightDoubleBracket]"}], "-", 
+          RowBox[{
+          "trim", "\[LeftDoubleBracket]", "2", "\[RightDoubleBracket]"}]}]}], 
+        "}"}]}], "]"}]}]}], "]"}]}]], "Input",
+ InitializationCell->
+  True,ExpressionUUID->"05bcc9a7-f9e1-43eb-b4a3-c1d616c6e778"],
+
+Cell["\<\
+Utility functions for up and down sampling images by a factor of 2. Might \
+want to make the down-sampler more sophisticated later, but it works OK this \
+way for now.\
+\>", "Text",ExpressionUUID->"17170555-2bea-4bb4-817a-ec529177aedd"],
+
+Cell[BoxData[
+ RowBox[{
+  RowBox[{
+   RowBox[{"DownSample2", "[", "m_", "]"}], ":=", 
+   RowBox[{
+    RowBox[{"(", 
+     RowBox[{
+      RowBox[{"Take", "[", 
+       RowBox[{"m", ",", 
+        RowBox[{"{", 
+         RowBox[{"1", ",", 
+          RowBox[{"Length", "[", "m", "]"}], ",", "2"}], "}"}], ",", 
+        RowBox[{"{", 
+         RowBox[{"1", ",", 
+          RowBox[{"Length", "[", "m", "]"}], ",", "2"}], "}"}]}], "]"}], "+", 
+      "\[IndentingNewLine]", 
+      RowBox[{"Take", "[", 
+       RowBox[{"m", ",", 
+        RowBox[{"{", 
+         RowBox[{"1", ",", 
+          RowBox[{"Length", "[", "m", "]"}], ",", "2"}], "}"}], ",", 
+        RowBox[{"{", 
+         RowBox[{"2", ",", 
+          RowBox[{"Length", "[", "m", "]"}], ",", "2"}], "}"}]}], "]"}], "+", 
+      "\[IndentingNewLine]", 
+      RowBox[{"Take", "[", 
+       RowBox[{"m", ",", 
+        RowBox[{"{", 
+         RowBox[{"2", ",", 
+          RowBox[{"Length", "[", "m", "]"}], ",", "2"}], "}"}], ",", 
+        RowBox[{"{", 
+         RowBox[{"1", ",", 
+          RowBox[{"Length", "[", "m", "]"}], ",", "2"}], "}"}]}], "]"}], "+", 
+      "\[IndentingNewLine]", 
+      RowBox[{"Take", "[", 
+       RowBox[{"m", ",", 
+        RowBox[{"{", 
+         RowBox[{"2", ",", 
+          RowBox[{"Length", "[", "m", "]"}], ",", "2"}], "}"}], ",", 
+        RowBox[{"{", 
+         RowBox[{"2", ",", 
+          RowBox[{"Length", "[", "m", "]"}], ",", "2"}], "}"}]}], "]"}]}], 
+     ")"}], "/", "4"}]}], ";"}]], "Input",
+ InitializationCell->
+  True,ExpressionUUID->"82ac4640-28ae-4598-8c47-302d2522cf9b"],
+
+Cell[BoxData[
+ RowBox[{
+  RowBox[{
+   RowBox[{"DownSample2", "[", "m_", "]"}], ":=", 
+   RowBox[{"Take", "[", 
+    RowBox[{"m", ",", 
+     RowBox[{"{", 
+      RowBox[{"1", ",", 
+       RowBox[{"Length", "[", "m", "]"}], ",", "2"}], "}"}], ",", 
+     RowBox[{"{", 
+      RowBox[{"1", ",", 
+       RowBox[{"Length", "[", "m", "]"}], ",", "2"}], "}"}]}], "]"}]}], 
+  ";"}]], "Input",ExpressionUUID->"6ca38ca3-888e-47ae-8b2b-1e6caf0f8332"],
+
+Cell[BoxData[
+ RowBox[{
+  RowBox[{"UpSample2", "[", "m_", "]"}], ":=", 
+  RowBox[{"Module", "[", 
+   RowBox[{
+    RowBox[{"{", "}"}], ",", "\[IndentingNewLine]", 
+    RowBox[{
+     RowBox[{
+      RowBox[{"thicken", "[", "l_", "]"}], ":=", 
+      RowBox[{"Module", "[", 
+       RowBox[{
+        RowBox[{"{", "x", "}"}], ",", "\[IndentingNewLine]", 
+        RowBox[{
+         RowBox[{"x", "=", 
+          RowBox[{"Flatten", "[", 
+           RowBox[{"Map", "[", 
+            RowBox[{
+             RowBox[{
+              RowBox[{"Replace", "[", 
+               RowBox[{"#", ",", 
+                RowBox[{"x_", "\[RuleDelayed]", 
+                 RowBox[{"{", 
+                  RowBox[{"x", ",", "x"}], "}"}]}]}], "]"}], "&"}], ",", 
+             "l"}], "]"}], "]"}]}], ";", "\[IndentingNewLine]", 
+         RowBox[{"{", 
+          RowBox[{"x", ",", "x"}], "}"}]}]}], "]"}]}], ";", 
+     "\[IndentingNewLine]", 
+     RowBox[{"Flatten", "[", 
+      RowBox[{
+       RowBox[{"Map", "[", 
+        RowBox[{"thicken", ",", "m", ",", 
+         RowBox[{"{", "1", "}"}]}], "]"}], ",", "1"}], "]"}]}]}], 
+   "]"}]}]], "Input",
+ InitializationCell->
+  True,ExpressionUUID->"14424cf1-5222-4200-a54a-6204baa9d906"],
+
+Cell[TextData[{
+ "Returns a convolution pyramid consisting of images of resoultion ",
+ Cell[BoxData[
+  FormBox[
+   RowBox[{"{", 
+    RowBox[{
+     RowBox[{"{", 
+      RowBox[{"1", "x1"}], "}"}], ",", 
+     RowBox[{"{", 
+      RowBox[{"2", "x2"}], "}"}], ",", "...", ",", 
+     RowBox[{"{", 
+      RowBox[{
+       SuperscriptBox["2", "n"], ",", 
+       SuperscriptBox["2", "n"]}], "}"}]}], "}"}], TraditionalForm]],
+  ExpressionUUID->"0027f111-dc45-4a52-b2f2-31542d3bb728"],
+ " where ",
+ Cell[BoxData[
+  FormBox[
+   RowBox[{"n", "=", 
+    SqrtBox[
+     RowBox[{"Dimensions", "[", "image", "]"}]]}], TraditionalForm]],
+  ExpressionUUID->"3cbfc9b4-3024-4e40-bf91-aa15f8f510b8"]
+}], "Text",ExpressionUUID->"2989402c-1b40-4b37-97a1-7bb48b8c84bc"],
+
+Cell[BoxData[
+ RowBox[{
+  RowBox[{"MakeConvolutionPyramid", "[", 
+   RowBox[{"image_", ",", "kernel_"}], "]"}], ":=", 
+  RowBox[{"Module", "[", 
+   RowBox[{
+    RowBox[{"{", "p", "}"}], ",", "\[IndentingNewLine]", 
+    RowBox[{
+     RowBox[{"p", "=", 
+      RowBox[{"{", "image", "}"}]}], ";", "\[IndentingNewLine]", 
+     "\[IndentingNewLine]", 
+     RowBox[{
+      RowBox[{"MakePyramid", "[", 
+       RowBox[{"i_", ",", "k_"}], "]"}], ":=", 
+      RowBox[{"Module", "[", 
+       RowBox[{
+        RowBox[{"{", 
+         RowBox[{"s", ",", "t"}], "}"}], ",", "\[IndentingNewLine]", 
+        RowBox[{"If", "[", 
+         RowBox[{
+          RowBox[{
+           RowBox[{"Length", "[", "i", "]"}], ">", "1"}], ",", 
+          "\[IndentingNewLine]", 
+          RowBox[{
+           RowBox[{"s", "=", 
+            RowBox[{"SameSizeConvolve", "[", 
+             RowBox[{"k", ",", "i"}], "]"}]}], ";", "\[IndentingNewLine]", 
+           RowBox[{"t", "=", 
+            RowBox[{"DownSample2", "[", "s", "]"}]}], ";", 
+           "\[IndentingNewLine]", 
+           RowBox[{"AppendTo", "[", 
+            RowBox[{"p", ",", "t"}], "]"}], ";", "\[IndentingNewLine]", 
+           RowBox[{"MakePyramid", "[", 
+            RowBox[{"t", ",", "k"}], "]"}]}], ",", "\[IndentingNewLine]", 
+          "\[IndentingNewLine]", 
+          RowBox[{"Return", "[", "i", "]"}]}], "]"}]}], "]"}]}], ";", 
+     "\[IndentingNewLine]", "\[IndentingNewLine]", 
+     RowBox[{"MakePyramid", "[", 
+      RowBox[{"image", ",", "kernel"}], "]"}], ";", "\[IndentingNewLine]", 
+     RowBox[{"ImagePyramid", "[", 
+      RowBox[{
+       RowBox[{"Reverse", "[", "p", "]"}], ",", "\"\<Convolution\>\""}], 
+      "]"}]}]}], "\[IndentingNewLine]", "]"}]}]], "Input",
+ InitializationCell->
+  True,ExpressionUUID->"029f0242-e7c7-44a3-8f33-70c64f47685a"],
+
+Cell["\<\
+Makes a difference pyramid from a given image pyramid and seed image. \
+\>", "Text",ExpressionUUID->"70fe17c8-4c1f-407a-a227-f8e85d37f57f"],
+
+Cell[BoxData[
+ RowBox[{
+  RowBox[{"MakeDifferencePyramid", "[", "pyramid_ImagePyramid", "]"}], ":=", 
+  RowBox[{"Module", "[", 
+   RowBox[{
+    RowBox[{"{", 
+     RowBox[{"i", ",", "ip"}], "}"}], ",", "\[IndentingNewLine]", 
+    RowBox[{
+     RowBox[{"ip", "=", 
+      RowBox[{
+      "pyramid", "\[LeftDoubleBracket]", "1", "\[RightDoubleBracket]"}]}], 
+     ";", "\[IndentingNewLine]", 
+     RowBox[{"ImagePyramid", "[", "\[IndentingNewLine]", 
+      RowBox[{
+       RowBox[{"Prepend", "[", 
+        RowBox[{
+         RowBox[{"Table", "[", 
+          RowBox[{
+           RowBox[{
+            RowBox[{"ip", "\[LeftDoubleBracket]", 
+             RowBox[{"i", "+", "1"}], "\[RightDoubleBracket]"}], "-", 
+            RowBox[{"UpSample2", "[", 
+             RowBox[{
+             "ip", "\[LeftDoubleBracket]", "i", "\[RightDoubleBracket]"}], 
+             "]"}]}], ",", 
+           RowBox[{"{", 
+            RowBox[{"i", ",", "1", ",", 
+             RowBox[{
+              RowBox[{"Length", "[", "ip", "]"}], "-", "1"}]}], "}"}]}], 
+          "]"}], ",", 
+         RowBox[{
+         "ip", "\[LeftDoubleBracket]", "1", "\[RightDoubleBracket]"}]}], 
+        "]"}], ",", "\[IndentingNewLine]", "\"\<Difference\>\""}], "]"}]}]}], 
+   "\[IndentingNewLine]", "]"}]}]], "Input",
+ InitializationCell->
+  True,ExpressionUUID->"c29cb196-18d0-4928-b364-0c5e0f9530d8"],
+
+Cell["\<\
+This is where the work gets done, 99% of external calls will be to this\
+\>", "Text",ExpressionUUID->"f3209e4c-8c41-4564-90d8-8090a1348a56"],
+
+Cell[BoxData[
+ RowBox[{
+  RowBox[{"MakeGaussianPyramid", "[", "image_", "]"}], ":=", 
+  "\[IndentingNewLine]", 
+  RowBox[{"MakeConvolutionPyramid", "[", 
+   RowBox[{"image", ",", "Kgauss"}], "]"}]}]], "Input",
+ InitializationCell->
+  True,ExpressionUUID->"3c9fa0be-ec03-46b7-a390-e4d7fe663c62"],
+
+Cell[BoxData[
+ RowBox[{
+  RowBox[{"MakeLaplacianPyramidFromGaussianPyramid", "[", "gp_", "]"}], ":=", 
+  "\[IndentingNewLine]", 
+  RowBox[{"MakeDifferencePyramid", "[", "gp", "]"}]}]], "Input",
+ InitializationCell->
+  True,ExpressionUUID->"3329e6fb-0bb3-4dee-a3c2-8551cfa28c02"],
+
+Cell[BoxData[
+ RowBox[{
+  RowBox[{"MakeLaplacianPyramid", "[", "image_", "]"}], ":=", 
+  "\[IndentingNewLine]", 
+  RowBox[{"MakeLaplacianPyramidFromGaussianPyramid", "[", 
+   RowBox[{"MakeGaussianPyramid", "[", "image", "]"}], "]"}]}]], "Input",
+ InitializationCell->
+  True,ExpressionUUID->"e47d11ec-c4ac-4293-90e6-6ccbb4031539"],
+
+Cell["\<\
+Take an image pyramid and make a set of images that all have the same \
+resolution.\
+\>", "Text",ExpressionUUID->"875da4e0-be40-48ab-b1aa-1fffddba9d31"],
+
+Cell[BoxData[
+ RowBox[{
+  RowBox[{"ExpandPyramid", "[", "pyramid_ImagePyramid", "]"}], ":=", 
+  RowBox[{"Module", "[", 
+   RowBox[{
+    RowBox[{"{", 
+     RowBox[{"i", ",", "p"}], "}"}], ",", "\[IndentingNewLine]", 
+    RowBox[{
+     RowBox[{"p", "=", 
+      RowBox[{
+      "pyramid", "\[LeftDoubleBracket]", "1", "\[RightDoubleBracket]"}]}], 
+     ";", "\[IndentingNewLine]", 
+     RowBox[{"ImagePyramid", "[", "\[IndentingNewLine]", 
+      RowBox[{"{", 
+       RowBox[{
+        RowBox[{"Table", "[", 
+         RowBox[{
+          RowBox[{"Nest", "[", 
+           RowBox[{"UpSample2", ",", 
+            RowBox[{
+            "p", "\[LeftDoubleBracket]", "i", "\[RightDoubleBracket]"}], ",", 
+            
+            RowBox[{
+             RowBox[{"Length", "[", "p", "]"}], "-", "i"}]}], "]"}], ",", 
+          RowBox[{"{", 
+           RowBox[{"i", ",", "1", ",", 
+            RowBox[{"Length", "[", "p", "]"}]}], "}"}]}], "]"}], ",", 
+        "\[IndentingNewLine]", "\"\<Expanded\>\""}], "}"}], "]"}]}]}], 
+   "\[IndentingNewLine]", "]"}]}]], "Input",
+ InitializationCell->
+  True,ExpressionUUID->"8778ce51-e0a9-43d5-9b64-8477ab82a29c"],
+
+Cell["\<\
+This is a much more memory and speed efficient version of this than the one \
+in v 1.1 & 1.2\
+\>", "Text",ExpressionUUID->"e009ea50-f977-4aa7-a86a-037a904105c0"],
+
+Cell[BoxData[
+ RowBox[{
+  RowBox[{"RecombineLaplacianPyramid", "[", "pyramid_ImagePyramid", "]"}], ":=", 
+  RowBox[{"Module", "[", 
+   RowBox[{
+    RowBox[{"{", "lp", "}"}], ",", "\[IndentingNewLine]", 
+    RowBox[{
+     RowBox[{"lp", "=", 
+      RowBox[{
+      "pyramid", "\[LeftDoubleBracket]", "1", "\[RightDoubleBracket]"}]}], 
+     ";", "\[IndentingNewLine]", 
+     RowBox[{"Fold", "[", 
+      RowBox[{
+       RowBox[{
+        RowBox[{"(", 
+         RowBox[{
+          RowBox[{"UpSample2", "[", "#1", "]"}], "+", "#2"}], ")"}], "&"}], 
+       ",", 
+       RowBox[{"First", "[", "lp", "]"}], ",", 
+       RowBox[{"Rest", "[", "lp", "]"}]}], "]"}]}]}], "\[IndentingNewLine]", 
+   "]"}]}]], "Input",
+ InitializationCell->
+  True,ExpressionUUID->"65459e7d-17de-4815-8450-c0df32acce7e"],
+
+Cell[BoxData[
+ RowBox[{
+  RowBox[{
+  "MakeGaussianPyramidFromLaplacianPyramid", "[", "pyramid_ImagePyramid", 
+   "]"}], ":=", 
+  RowBox[{"Module", "[", 
+   RowBox[{
+    RowBox[{"{", "lp", "}"}], ",", "\[IndentingNewLine]", 
+    RowBox[{
+     RowBox[{"lp", "=", 
+      RowBox[{
+      "pyramid", "\[LeftDoubleBracket]", "1", "\[RightDoubleBracket]"}]}], 
+     ";", "\[IndentingNewLine]", 
+     RowBox[{"ImagePyramid", "[", "\[IndentingNewLine]", 
+      RowBox[{
+       RowBox[{"FoldList", "[", 
+        RowBox[{
+         RowBox[{
+          RowBox[{"(", 
+           RowBox[{
+            RowBox[{"UpSample2", "[", "#1", "]"}], "+", "#2"}], ")"}], "&"}], 
+         ",", 
+         RowBox[{"First", "[", "lp", "]"}], ",", 
+         RowBox[{"Rest", "[", "lp", "]"}]}], "]"}], ",", 
+       "\[IndentingNewLine]", "\"\<Gaussian\>\""}], "]"}]}]}], 
+   "\[IndentingNewLine]", "]"}]}]], "Input",
+ InitializationCell->
+  True,ExpressionUUID->"9defef59-e7ce-408e-a973-90532df0f5a9"],
+
+Cell["Draw the pyramid", "Text",ExpressionUUID->"37d179cd-0c46-418b-a71d-a5f0751a2d73"],
+
+Cell[BoxData[
+ RowBox[{
+  RowBox[{"ShowPyramid", "[", "pyramid_ImagePyramid", "]"}], ":=", 
+  RowBox[{"Module", "[", 
+   RowBox[{
+    RowBox[{"{", "ip", "}"}], ",", "\[IndentingNewLine]", 
+    RowBox[{
+     RowBox[{"ip", "=", 
+      RowBox[{
+      "pyramid", "\[LeftDoubleBracket]", "1", "\[RightDoubleBracket]"}]}], 
+     ";", "\[IndentingNewLine]", 
+     RowBox[{"Map", "[", 
+      RowBox[{
+       RowBox[{
+        RowBox[{"ListDensityPlot", "[", 
+         RowBox[{"#", ",", 
+          RowBox[{"Mesh", "\[Rule]", "False"}], ",", 
+          RowBox[{"Frame", "\[Rule]", "False"}]}], "]"}], "&"}], ",", "ip"}], 
+      "]"}]}]}], "]"}]}]], "Input",
+ InitializationCell->
+  True,ExpressionUUID->"d35de520-f1ad-48f5-83a9-2b1e57539a5f"],
+
+Cell["Access - yes, stupid but useful for now...", "Text",ExpressionUUID->"d4df3778-6652-4bb8-8bf7-b3447c19f8a0"],
+
+Cell[BoxData[
+ RowBox[{
+  RowBox[{
+   RowBox[{"ImagePyramid", "[", 
+    RowBox[{"ip_", ",", "type_"}], "]"}], "[", 
+   RowBox[{"i_", ",", "x_", ",", "y_"}], "]"}], ":=", 
+  RowBox[{"ip", "\[LeftDoubleBracket]", 
+   RowBox[{"i", ",", "x", ",", "y"}], "\[RightDoubleBracket]"}]}]], "Input",
+ InitializationCell->
+  True,ExpressionUUID->"2dd4c083-f4ff-44fe-8bb9-69bbb8e3dee0"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell["\<\
+Some utility functions for convolving images w/ banks, pyramids w/ kernels \
+and puramids w/ banks\
+\>", "Subsubsection",ExpressionUUID->"b616bfe7-93a2-4527-8130-e0c1e530a770"],
+
+Cell[BoxData[
+ RowBox[{
+  RowBox[{"ConvolvePyramid", "[", 
+   RowBox[{"pyramid_ImagePyramid", ",", "kernel_"}], "]"}], ":=", 
+  RowBox[{"Module", "[", 
+   RowBox[{
+    RowBox[{"{", "ip", "}"}], ",", "\[IndentingNewLine]", 
+    RowBox[{
+     RowBox[{"ip", "=", 
+      RowBox[{
+      "pyramid", "\[LeftDoubleBracket]", "1", "\[RightDoubleBracket]"}]}], 
+     ";", "\[IndentingNewLine]", 
+     RowBox[{"ImagePyramid", "[", "\[IndentingNewLine]", 
+      RowBox[{
+       RowBox[{"Map", "[", 
+        RowBox[{
+         RowBox[{
+          RowBox[{"SameSizeConvolve", "[", 
+           RowBox[{"kernel", ",", "#"}], "]"}], "&"}], ",", "ip"}], "]"}], 
+       ",", "\[IndentingNewLine]", "\"\<Convolve\>\""}], "]"}]}]}], 
+   "\[IndentingNewLine]", "]"}]}]], "Input",
+ InitializationCell->
+  True,ExpressionUUID->"c7675d6e-ff1f-4bf7-b5cb-a4caba26a720"],
+
+Cell[BoxData[
+ RowBox[{
+  RowBox[{
+   RowBox[{"ConvolvePyramidWithBank", "[", 
+    RowBox[{"pyramid_ImagePyramid", ",", "bank_"}], "]"}], ":=", 
+   RowBox[{"Map", "[", 
+    RowBox[{
+     RowBox[{
+      RowBox[{"ConvolvePyramid", "[", 
+       RowBox[{"pyramid", ",", "#"}], "]"}], "&"}], ",", "bank"}], "]"}]}], 
+  "\[IndentingNewLine]"}]], "Input",
+ InitializationCell->
+  True,ExpressionUUID->"3f921520-b81d-449d-b63c-2e8c2b262ad6"],
+
+Cell[BoxData[
+ RowBox[{
+  RowBox[{"ConvolveImageWithBank", "[", 
+   RowBox[{"i_", ",", "bank_"}], "]"}], ":=", "\[IndentingNewLine]", 
+  RowBox[{"Map", "[", 
+   RowBox[{
+    RowBox[{
+     RowBox[{"SameSizeConvolve", "[", 
+      RowBox[{"#", ",", "i"}], "]"}], "&"}], ",", "bank"}], "]"}]}]], "Input",\
+
+ InitializationCell->
+  True,ExpressionUUID->"8c117e2f-4de2-45e5-810e-c3bc31bbb384"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell["Filter Bank", "Subsubsection",ExpressionUUID->"69d7f9e7-a396-4591-a83b-b85798862b15"],
+
+Cell["\<\
+These probably don't belong in here, but for now they are here...\
+\>", "Text",ExpressionUUID->"7405c560-fb1c-4b1b-a856-67a1f2b06259"],
+
+Cell[BoxData[
+ RowBox[{
+  RowBox[{"MakeOrientedKernelBank", "[", 
+   RowBox[{"dim_", ",", "f_"}], "]"}], ":=", 
+  RowBox[{"Module", "[", 
+   RowBox[{
+    RowBox[{"{", 
+     RowBox[{"x", ",", "y", ",", "u", ",", "v", ",", "kernels"}], "}"}], ",", 
+    "\[IndentingNewLine]", 
+    RowBox[{
+     RowBox[{"kernels", "=", "\[IndentingNewLine]", 
+      RowBox[{"Table", "[", 
+       RowBox[{
+        RowBox[{"Table", "[", 
+         RowBox[{
+          RowBox[{"N", "[", 
+           RowBox[{"f", "[", 
+            RowBox[{
+             RowBox[{"{", 
+              RowBox[{"u", ",", "v"}], "}"}], ".", 
+             RowBox[{"{", 
+              RowBox[{"x", ",", "y"}], "}"}]}], "]"}], "]"}], ",", 
+          RowBox[{"{", 
+           RowBox[{"x", ",", 
+            RowBox[{"-", "dim"}], ",", "dim", ",", "1"}], "}"}], ",", 
+          RowBox[{"{", 
+           RowBox[{"y", ",", 
+            RowBox[{"-", "dim"}], ",", "dim", ",", "1"}], "}"}]}], "]"}], ",", 
+        RowBox[{"{", 
+         RowBox[{"u", ",", 
+          RowBox[{"-", "1"}], ",", "1", ",", "1"}], "}"}], ",", 
+        RowBox[{"{", 
+         RowBox[{"v", ",", 
+          RowBox[{"-", "1"}], ",", "1", ",", "1"}], "}"}]}], "]"}]}], ";", 
+     "\[IndentingNewLine]", 
+     RowBox[{"Drop", "[", 
+      RowBox[{
+       RowBox[{"Flatten", "[", 
+        RowBox[{"kernels", ",", "1"}], "]"}], ",", 
+       RowBox[{"{", "5", "}"}]}], "]"}]}]}], "\[IndentingNewLine]", 
+   "]"}]}]], "Input",
+ InitializationCell->
+  True,ExpressionUUID->"135cd4e3-2cff-44fa-abe0-a5bc6def136b"]
+}, Open  ]]
+}, Open  ]],
+
+Cell["Rules for the system functions", "Subsection",
+ InitializationCell->
+  True,ExpressionUUID->"b4edaccc-49eb-4eb5-a0ea-3a5797bfa30d"],
+
+Cell["Restore protection of system functions", "Subsection",
+ InitializationCell->
+  True,ExpressionUUID->"793f8abd-9755-451e-9792-7066948e360f"],
+
+Cell[CellGroupData[{
+
+Cell["End the private context", "Subsection",
+ InitializationCell->
+  True,ExpressionUUID->"0020037b-4997-48c6-872c-2bc35a63eb39"],
+
+Cell["End[]", "Input",
+ InitializationCell->
+  True,ExpressionUUID->"179af5b3-308a-40eb-9d81-551069453381"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell["Protect exoprted symbols", "Subsection",
+ InitializationCell->
+  True,ExpressionUUID->"d8fc7450-84ad-4066-a23c-ec7fb0074d5f"],
+
+Cell[BoxData[
+ RowBox[{
+  RowBox[{"Protect", "[", 
+   RowBox[{"{", 
+    RowBox[{
+    "SameSizeConvolve", ",", "DownSample2", ",", "UpSample2", ",", 
+     "MakeConvolutionPyramid", ",", "MakeDifferencePyramid", ",", 
+     "MakeGaussianPyramid", ",", "MakeLaplacianPyramid", ",", 
+     "MakeLaplacianPyramidFromGaussianPyramid", ",", "ExpandPyramid", ",", 
+     "RecombineLaplacianPyramid", ",", 
+     "MakeGaussianPyramidFromLaplacianPyramid", ",", "ShowPyramid", ",", 
+     "ImagePyramid", ",", "\[IndentingNewLine]", "ConvolvePyramid", ",", 
+     "ConvolvePyramidWithBank", ",", "ConvolveImageWithBank", ",", 
+     "\[IndentingNewLine]", "MakeOrientedKernelBank"}], "}"}], "]"}], 
+  ";"}]], "Input",
+ InitializationCell->
+  True,ExpressionUUID->"8356876f-bd7c-4346-ac3e-2c7e78308d7e"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell["End the package context", "Subsection",
+ InitializationCell->
+  True,ExpressionUUID->"3fb7eb9d-29c8-4008-b2f4-58910d1e866c"],
+
+Cell["EndPackage[]", "Input",
+ InitializationCell->
+  True,ExpressionUUID->"856fa34d-6f40-4836-940c-34ca19cbc5d9"]
+}, Open  ]]
+}, Open  ]]
+}, Open  ]]
+},
+AutoGeneratedPackage->Automatic,
+WindowToolbars->{},
+WindowSize->{849, 605},
+WindowMargins->{{723, Automatic}, {Automatic, 300}},
+PrivateNotebookOptions->{"VersionedStylesheet"->{"Default.nb"[8.] -> False}},
+ShowCellLabel->True,
+ShowCellTags->False,
+Magnification->1.25,
+FrontEndVersion->"11.3 for Mac OS X x86 (32-bit, 64-bit Kernel) (March 5, \
+2018)",
+StyleDefinitions->"Default.nb",
+PrivateNotebookOptions -> {"ColorPalette" -> {RGBColor, -1}},
+RenderingOptions -> {"ObjectDithering" -> True},
+RenderingOptions -> {"RasterDithering" -> False},
+MacintoshSystemPageSetup -> \
+"00<0001804P000000]P2:?oQon82n@960dL5:0?l0080001804P000000]P2:001\n\
+0000I00000400`<300000BL?00400@00000000000000060801T1T00000000000\n\
+00000000000000000000000000000000"
+]
+(* End of Notebook Content *)
+
+(* Internal cache information *)
+(*CellTagsOutline
+CellTagsIndex->{}
+*)
+(*CellTagsIndex
+CellTagsIndex->{}
+*)
+(*NotebookFileOutline
+Notebook[{
+Cell[CellGroupData[{
+Cell[580, 22, 123, 2, 123, "Title",ExpressionUUID->"6149536e-5cb6-48af-bc9a-2885cc1e8482",
+ InitializationCell->True],
+Cell[706, 26, 138, 5, 67, "Subsubtitle",ExpressionUUID->"1166bfba-94db-47af-a10c-68f6cae6035a",
+ InitializationCell->True],
+Cell[CellGroupData[{
+Cell[869, 35, 129, 2, 84, "Section",ExpressionUUID->"c839ca35-8553-4794-898e-4e79541be9de",
+ InitializationCell->True],
+Cell[1001, 39, 1264, 51, 1059, "Input",ExpressionUUID->"4f4337f5-2efe-4b5e-ba77-f1863306000c",
+ InitializationCell->True]
+}, Open  ]],
+Cell[CellGroupData[{
+Cell[2302, 95, 84, 0, 131, "Section",ExpressionUUID->"e048f586-a8b6-4c87-bd73-3642eb8a6abd"],
+Cell[2389, 97, 418, 9, 204, "Text",ExpressionUUID->"fe9916e8-baed-4f8d-9895-ac5a3467389a",
+ InitializationCell->True]
+}, Open  ]],
+Cell[CellGroupData[{
+Cell[2844, 111, 115, 2, 131, "Section",ExpressionUUID->"f3d9841f-a8b1-4af0-9698-838311729d17",
+ InitializationCell->True],
+Cell[CellGroupData[{
+Cell[2984, 117, 156, 2, 104, "Subsection",ExpressionUUID->"4ef9e287-63ac-425f-b3f9-f2b4f410cb9e",
+ InitializationCell->True],
+Cell[3143, 121, 255, 9, 264, "Input",ExpressionUUID->"043fcd26-a1a2-461e-9376-19cf51953be0",
+ InitializationCell->True]
+}, Open  ]],
+Cell[CellGroupData[{
+Cell[3435, 135, 121, 2, 104, "Subsection",ExpressionUUID->"e6d15eeb-c726-4480-b873-3dbba59ee418",
+ InitializationCell->True],
+Cell[3559, 139, 269, 6, 171, "Input",ExpressionUUID->"fab89708-d8e5-4b1e-94c4-58b68017d67a",
+ InitializationCell->True],
+Cell[3831, 147, 470, 9, 293, "Input",ExpressionUUID->"352a4ddf-9a3e-4a46-a384-6fff84ff53ce",
+ InitializationCell->True],
+Cell[4304, 158, 260, 6, 171, "Input",ExpressionUUID->"b6be29a7-015d-424f-9641-01757c3d07db",
+ InitializationCell->True],
+Cell[4567, 166, 254, 6, 171, "Input",ExpressionUUID->"4b888e9e-1fcb-47e1-bfa0-51bc4a5dc815",
+ InitializationCell->True],
+Cell[4824, 174, 319, 6, 212, "Input",ExpressionUUID->"3981512f-ff8a-4484-baf4-5f0a591bd46f",
+ InitializationCell->True],
+Cell[5146, 182, 367, 7, 171, "Input",ExpressionUUID->"9600a206-a12b-4883-a9bb-e061069b7888",
+ InitializationCell->True],
+Cell[5516, 191, 256, 6, 131, "Input",ExpressionUUID->"455a68f1-9c3e-47cc-b1d4-bd520de26728",
+ InitializationCell->True],
+Cell[5775, 199, 259, 6, 131, "Input",ExpressionUUID->"9f01365b-c918-428d-98f9-aa8007a1c449",
+ InitializationCell->True],
+Cell[6037, 207, 324, 6, 171, "Input",ExpressionUUID->"34281aac-e383-423b-9425-2773c9acfad1",
+ InitializationCell->True],
+Cell[6364, 215, 302, 6, 171, "Input",ExpressionUUID->"2c8ed1b9-4349-4e60-97da-c55bc889ffe4",
+ InitializationCell->True],
+Cell[6669, 223, 281, 6, 171, "Input",ExpressionUUID->"686d6881-d727-485f-8d07-ec418bd1c1d9",
+ InitializationCell->True],
+Cell[6953, 231, 317, 6, 171, "Input",ExpressionUUID->"3abfd0f7-fcb0-46ea-a7fd-8d5d531c90f0",
+ InitializationCell->True],
+Cell[7273, 239, 241, 6, 131, "Input",ExpressionUUID->"b4ea58bf-ac05-415e-9d8c-602f91fa633b",
+ InitializationCell->True],
+Cell[7517, 247, 247, 6, 131, "Input",ExpressionUUID->"8749b1c8-8b72-4e0a-9f3c-84722e54799e",
+ InitializationCell->True],
+Cell[7767, 255, 264, 6, 171, "Input",ExpressionUUID->"ec855ff8-e4da-4369-b600-f721777d7cd9",
+ InitializationCell->True],
+Cell[8034, 263, 331, 7, 212, "Input",ExpressionUUID->"11081a05-6cda-401f-bdca-64467e1dcf27",
+ InitializationCell->True],
+Cell[8368, 272, 316, 6, 171, "Input",ExpressionUUID->"ccdb8839-ee3a-4592-9038-b470a8671517",
+ InitializationCell->True],
+Cell[8687, 280, 353, 7, 212, "Input",ExpressionUUID->"31ebc6c4-6191-4684-b904-41f175e878a9",
+ InitializationCell->True]
+}, Open  ]],
+Cell[CellGroupData[{
+Cell[9077, 292, 132, 2, 104, "Subsection",ExpressionUUID->"32d0da63-ef22-4174-a4a1-0f5509e0ccdf",
+ InitializationCell->True],
+Cell[9212, 296, 122, 2, 89, "Input",ExpressionUUID->"ff99b70b-e45e-4ed4-8b60-8c6f15d08e4f",
+ InitializationCell->True]
+}, Open  ]],
+Cell[CellGroupData[{
+Cell[9371, 303, 177, 4, 104, "Subsection",ExpressionUUID->"365049f7-2e09-47f2-bea5-2459a157759a",
+ InitializationCell->True],
+Cell[9551, 309, 125, 2, 68, "Text",ExpressionUUID->"14f4dedc-110e-42f7-956d-afd7a3aee651",
+ InitializationCell->True],
+Cell[9679, 313, 787, 16, 375, "Input",ExpressionUUID->"c0c5b6f7-36a2-43ff-8b37-83403b7172e3",
+ InitializationCell->True]
+}, Open  ]],
+Cell[CellGroupData[{
+Cell[10503, 334, 83, 0, 104, "Subsection",ExpressionUUID->"d3b7552c-d347-4381-a645-cd355eac78e1"],
+Cell[10589, 336, 209, 5, 89, "Input",ExpressionUUID->"97949613-4de4-47bd-92ca-16cdc732cf38",
+ InitializationCell->True]
+}, Open  ]],
+Cell[CellGroupData[{
+Cell[10835, 346, 177, 4, 104, "Subsection",ExpressionUUID->"57b91de1-ddfa-49cd-864e-4e52c4df63f5",
+ InitializationCell->True],
+Cell[11015, 352, 125, 0, 68, "Text",ExpressionUUID->"e29ace32-9f56-490f-9dba-4b610e5a2ee6"],
+Cell[11143, 354, 611, 18, 171, "Input",ExpressionUUID->"ee9d1791-194d-41b6-9264-0c6b8c0ceb3a",
+ InitializationCell->True],
+Cell[11757, 374, 181, 4, 68, "Text",ExpressionUUID->"1e1ba00f-edde-4b32-9686-96baeb92b70e",
+ InitializationCell->True],
+Cell[11941, 380, 755, 22, 212, "Input",ExpressionUUID->"a5102e78-8298-4b5b-875a-33d8a2d408b0",
+ InitializationCell->True]
+}, Open  ]],
+Cell[CellGroupData[{
+Cell[12733, 407, 146, 2, 104, "Subsection",ExpressionUUID->"c18a15e9-d5b0-49ca-9691-6226d09adf2d",
+ InitializationCell->True],
+Cell[12882, 411, 229, 6, 89, "Input",ExpressionUUID->"842c6806-ad6a-44da-b72a-61db2460e9ff",
+ InitializationCell->True]
+}, Open  ]],
+Cell[CellGroupData[{
+Cell[13148, 422, 143, 2, 104, "Subsection",ExpressionUUID->"c2e14dcb-ff47-4650-a3ca-b0f188e6c35a",
+ InitializationCell->True],
+Cell[CellGroupData[{
+Cell[13316, 428, 99, 0, 87, "Subsubsection",ExpressionUUID->"10a01a83-cc1d-4716-a9c4-33aabbe1363e"],
+Cell[13418, 430, 247, 4, 114, "Text",ExpressionUUID->"42106ac2-404d-4108-9c28-d060c50fd2ff"],
+Cell[13668, 436, 1803, 52, 293, "Input",ExpressionUUID->"05bcc9a7-f9e1-43eb-b4a3-c1d616c6e778",
+ InitializationCell->True],
+Cell[15474, 490, 246, 4, 114, "Text",ExpressionUUID->"17170555-2bea-4bb4-817a-ec529177aedd"],
+Cell[15723, 496, 1556, 44, 212, "Input",ExpressionUUID->"82ac4640-28ae-4598-8c47-302d2522cf9b",
+ InitializationCell->True],
+Cell[17282, 542, 435, 12, 57, "Input",ExpressionUUID->"6ca38ca3-888e-47ae-8b2b-1e6caf0f8332"],
+Cell[17720, 556, 1197, 34, 253, "Input",ExpressionUUID->"14424cf1-5222-4200-a54a-6204baa9d906",
+ InitializationCell->True],
+Cell[18920, 592, 741, 22, 126, "Text",ExpressionUUID->"2989402c-1b40-4b37-97a1-7bb48b8c84bc"],
+Cell[19664, 616, 1800, 44, 659, "Input",ExpressionUUID->"029f0242-e7c7-44a3-8f33-70c64f47685a",
+ InitializationCell->True],
+Cell[21467, 662, 149, 2, 68, "Text",ExpressionUUID->"70fe17c8-4c1f-407a-a227-f8e85d37f57f"],
+Cell[21619, 666, 1353, 35, 334, "Input",ExpressionUUID->"c29cb196-18d0-4928-b364-0c5e0f9530d8",
+ InitializationCell->True],
+Cell[22975, 703, 150, 2, 68, "Text",ExpressionUUID->"f3209e4c-8c41-4564-90d8-8090a1348a56"],
+Cell[23128, 707, 294, 7, 131, "Input",ExpressionUUID->"3c9fa0be-ec03-46b7-a390-e4d7fe663c62",
+ InitializationCell->True],
+Cell[23425, 716, 278, 6, 131, "Input",ExpressionUUID->"3329e6fb-0bb3-4dee-a3c2-8551cfa28c02",
+ InitializationCell->True],
+Cell[23706, 724, 330, 7, 131, "Input",ExpressionUUID->"e47d11ec-c4ac-4293-90e6-6ccbb4031539",
+ InitializationCell->True],
+Cell[24039, 733, 162, 3, 68, "Text",ExpressionUUID->"875da4e0-be40-48ab-b1aa-1fffddba9d31"],
+Cell[24204, 738, 1136, 30, 293, "Input",ExpressionUUID->"8778ce51-e0a9-43d5-9b64-8477ab82a29c",
+ InitializationCell->True],
+Cell[25343, 770, 171, 3, 68, "Text",ExpressionUUID->"e009ea50-f977-4aa7-a86a-037a904105c0"],
+Cell[25517, 775, 786, 22, 212, "Input",ExpressionUUID->"65459e7d-17de-4815-8450-c0df32acce7e",
+ InitializationCell->True],
+Cell[26306, 799, 967, 27, 334, "Input",ExpressionUUID->"9defef59-e7ce-408e-a973-90532df0f5a9",
+ InitializationCell->True],
+Cell[27276, 828, 87, 0, 68, "Text",ExpressionUUID->"37d179cd-0c46-418b-a71d-a5f0751a2d73"],
+Cell[27366, 830, 731, 20, 171, "Input",ExpressionUUID->"d35de520-f1ad-48f5-83a9-2b1e57539a5f",
+ InitializationCell->True],
+Cell[28100, 852, 113, 0, 68, "Text",ExpressionUUID->"d4df3778-6652-4bb8-8bf7-b3447c19f8a0"],
+Cell[28216, 854, 373, 9, 89, "Input",ExpressionUUID->"2dd4c083-f4ff-44fe-8bb9-69bbb8e3dee0",
+ InitializationCell->True]
+}, Open  ]],
+Cell[CellGroupData[{
+Cell[28626, 868, 186, 3, 139, "Subsubsection",ExpressionUUID->"b616bfe7-93a2-4527-8130-e0c1e530a770"],
+Cell[28815, 873, 840, 22, 293, "Input",ExpressionUUID->"c7675d6e-ff1f-4bf7-b5cb-a4caba26a720",
+ InitializationCell->True],
+Cell[29658, 897, 433, 12, 171, "Input",ExpressionUUID->"3f921520-b81d-449d-b63c-2e8c2b262ad6",
+ InitializationCell->True],
+Cell[30094, 911, 387, 11, 131, "Input",ExpressionUUID->"8c117e2f-4de2-45e5-810e-c3bc31bbb384",
+ InitializationCell->True]
+}, Open  ]],
+Cell[CellGroupData[{
+Cell[30518, 927, 91, 0, 87, "Subsubsection",ExpressionUUID->"69d7f9e7-a396-4591-a83b-b85798862b15"],
+Cell[30612, 929, 144, 2, 68, "Text",ExpressionUUID->"7405c560-fb1c-4b1b-a856-67a1f2b06259"],
+Cell[30759, 933, 1519, 42, 293, "Input",ExpressionUUID->"135cd4e3-2cff-44fa-abe0-a5bc6def136b",
+ InitializationCell->True]
+}, Open  ]]
+}, Open  ]],
+Cell[32305, 979, 137, 2, 104, "Subsection",ExpressionUUID->"b4edaccc-49eb-4eb5-a0ea-3a5797bfa30d",
+ InitializationCell->True],
+Cell[32445, 983, 145, 2, 71, "Subsection",ExpressionUUID->"793f8abd-9755-451e-9792-7066948e360f",
+ InitializationCell->True],
+Cell[CellGroupData[{
+Cell[32615, 989, 130, 2, 71, "Subsection",ExpressionUUID->"0020037b-4997-48c6-872c-2bc35a63eb39",
+ InitializationCell->True],
+Cell[32748, 993, 107, 2, 89, "Input",ExpressionUUID->"179af5b3-308a-40eb-9d81-551069453381",
+ InitializationCell->True]
+}, Open  ]],
+Cell[CellGroupData[{
+Cell[32892, 1000, 131, 2, 104, "Subsection",ExpressionUUID->"d8fc7450-84ad-4066-a23c-ec7fb0074d5f",
+ InitializationCell->True],
+Cell[33026, 1004, 785, 16, 375, "Input",ExpressionUUID->"8356876f-bd7c-4346-ac3e-2c7e78308d7e",
+ InitializationCell->True]
+}, Open  ]],
+Cell[CellGroupData[{
+Cell[33848, 1025, 130, 2, 104, "Subsection",ExpressionUUID->"3fb7eb9d-29c8-4008-b2f4-58910d1e866c",
+ InitializationCell->True],
+Cell[33981, 1029, 114, 2, 89, "Input",ExpressionUUID->"856fa34d-6f40-4836-940c-34ca19cbc5d9",
+ InitializationCell->True]
+}, Open  ]]
+}, Open  ]]
+}, Open  ]]
+}
+]
+*)
+
